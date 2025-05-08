@@ -19,7 +19,7 @@ for (i in 1:length(time_example)){
   tmp$time1 <- tmp$time1*tmp$tg1
   tmp$time2 <- tmp$time2*tmp$tg
   plgModel <- lmer(NP_PACC_PACC5 ~ 1 + time1 + time2 + (1 + time1 + time2 |
-                                                          SubjIDshort), data = tmp)
+                                                          ID), data = tmp)
   model_list[[i]] = summary(plgModel)
   AIC_BIC[i, 1] = AIC(plgModel)
   AIC_BIC[i, 2] = BIC(plgModel)
