@@ -1,82 +1,63 @@
-%% Create c-time dataset
+%% Create dataset with c-time
  
+clear;clc;
  
 %% Generate time and baseline age variables.
-%  dat = LongDataSet_Utilis(dat,varname,time,newvarname,by,opperation)
-tbl = LongDataSet_Utilis(tbl,'NP_Age','time','age_bl','SubjIDshort','baseline');
-tbl = LongDataSet_Utilis(tbl,'NP_PACC_PACC5','time','pacc_bl','ID','baseline');
- 
-%% set up PACC change scores and slopes
-% only keep subjects with more than 2 time points.
-list = unique(td.ID);
-for ii = 1:numel(list)
-   n = find(td.ID==list(ii));
-   td.numtp(n) = numel(n);
-end
-ind = find(td.numtp > 2);
-td = td(ind,:);
-%% remove variance associated with age, sex, and education
-mdl1 = fitlme(td,'NP_PACC_PACC5~age_bl*time + SEX*time + YrsEd*time + (1|SubjIDshort)');
+tbl = struct2table(R);
+tbl.SubjIDshort = nominal(tbl.SubjIDshort); % Convert subject ID to categorical variable
+tbl.tt = datenum(tbl.NP_SessionDate)/365.25; % Convert session date to fractional years
+tbl = LongDataSet_Utilis(tbl,'tt',[],'time','SubjIDshort','zero'); % Creates a zero-centered time variable for each subject (i.e. for each subject, earliest time point is 0)
+tbl = LongDataSet_Utilis(tbl,'NP_Age','time','age_bl','SubjIDshort','baseline'); % Creates a new variable age_bl containing each subjects baseline age
+tbl = LongDataSet_Utilis(tbl,'NP_PACC_PACC5','time','pacc_bl','SubjIDshort','baseline'); % Creates a new variable pacc_bl that stores the subject's baseline cognitive score
  
  
-lme_resids = mdl1.residuals;
+%% Set up PACC change scores and slopes
  
-%% compute slopes and save to table
-out = computeSlopes(td,'ID','time','NP_PACC_PACC5~time*age_bl + time*SEX + time*YrsEd + (time|ID)');
-td.pacc_sl1 = out.slope;
-td.pacc_sl2 = out.alt_slope;
- 
-%%
- 
-% subtract each subjects first PACC score from all of their PACC scores.
+% Subtract each subjects first PACC score from all of their PACC scores.
 list = unique(td.SubjIDshort);
 td.pacc5_change = NaN(height(td),1);
 td.pacc5_lme_res_change = NaN(height(td),1);
 for ii = 1:numel(list)
-   n = find(td.ID==list(ii));
+   n = find(td.SubjIDshort==list(ii));
    
-   td.pacc5_change(n) = td.NP_PACC_PACC5(n) - td.NP_PACC_PACC5(n(1));
-%    yr(n) = yr(n)-yr(n(1));
+   td.pacc5_change(n) = td.NP_PACC_PACC5(n) - td.NP_PACC_PACC5(n(1)); % change in PACC from baseline
+   td.pacc5_lme_res_change(n) = lme_resids(n) - lme_resids(n(1));
 end
  
-
+ 
+%% Fit a nonlinear model to change in PACC and extract fit parameters per subject
 [p5ch_offsets,p5ch_intercepts,p5ch_coeffs] = fit_and_sort(td,'SubjIDshort','pacc5_change','time',300);
  
  
-%% test simple change scores for final model fit error
-a = p5ch_coeffs.a;
+ 
+%% Test simple change scores for final model fit error
+a = p5ch_coeffs.a; % Extract coefficients
 b = p5ch_coeffs.b;
 c = p5ch_coeffs.c;
 d = p5ch_coeffs.d;
 e = p5ch_coeffs.e;
-mod_t0s = p5ch_offsets;
-mod_ints = p5ch_intercepts;
-X = td.time + mod_t0s;
-yhats = a*exp(b*X) + c*X + d*X.^2 + e + mod_ints;
+mod_t0s = p5ch_offsets; % Extract offsets per subject
+mod_ints = p5ch_intercepts; % Extract intercept adjustments
+X = td.time + mod_t0s; % Adjusted time variable
+yhats = a*exp(b*X) + c*X + d*X.^2 + e + mod_ints; % Nonlinear model prediction
  
-diff = td.pacc5_change - yhats;
+diff = td.pacc5_change - yhats; % Residuals (actual - predicted)
  
 MAE = mean(abs(diff))
- 
 RMSE = sqrt(mean(diff.^2))
  
  
-mod_t0s = p5ch_offsets;
-xsc = min(mod_t0s):0.1:max(mod_t0s+7);
-ysc = a*exp(b*xsc) + c*xsc + d*xsc.^2 +e;
-plot(xsc,ysc,'linewidth',3);shg
+xsc = min(mod_t0s):0.1:max(mod_t0s+7); % Generate x values for plot
+ysc = a*exp(b*xsc) + c*xsc + d*xsc.^2 +e; % Evaluate model
+plot(xsc,ysc,'linewidth',3);shg % Plot curve
  
  
- 
-%%
- 
- 
-td.time_eql_chng_rndint = td.time + p5ch_offsets;
+td.time_eql_chng_rndint = td.time + p5ch_offsets; % Adjusted time variable with offsets (c-time)
 td.intrcpt_chng = p5ch_intercepts;
  
  
-save PACC5_combined.mat td p5lmer_coeffs p5ch_coeffs
- 
+writetable(td, 'td.csv');
+
  
 
 
