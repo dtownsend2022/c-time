@@ -1,0 +1,127 @@
+%% perform an iterative exponential fit - stop once changes slow
+% fit everyone once curve created
+ 
+function [offsets,intercepts,coeffs] = fit_and_sort(td,id_name,var_name,time_name,chunk_size,max_its,fit_stop,bounds)
+ 
+if nargin < 4
+    error('too few input arguments')
+end
+if nargin < 5
+    chunk_size = 50
+end
+if nargin < 6
+    max_its = 1000
+end
+if nargin < 7
+    fit_stop = 0.002
+end
+if nargin < 8
+    bounds = [-Inf -Inf 0.001 -0.002 -Inf;0 Inf Inf -0.001 Inf]
+end
+ 
+td.(id_name) = nominal(td.(id_name));
+ 
+coeffs = struct;
+fitd = true;
+options = optimoptions(@lsqnonlin,'Algorithm','trust-region-reflective','display','off');
+fo = fitoptions('Method','NonlinearLeastSquares','Lower',bounds(1,:),'Upper',bounds(2,:));
+g = fittype('a*exp(b*x) + c*x + d*x^2 + e','independent','x','dependent','y','options',fo);
+ 
+prev_a = 0;
+prev_b = 0;
+prev_c = 0;
+prev_d = 0;
+prev_e = 0;
+ 
+it_count = 0;
+it_stop = max_its;
+fin_t0s = zeros(numel(td.(time_name)),1);
+fin_ints = zeros(numel(td.(time_name)),1);
+t0s = td.(time_name);
+ 
+ints = zeros(numel(td.(time_name)),1);
+ 
+list = unique(td.(id_name));
+ 
+xstart = [0 0];
+%figure(10);
+ 
+while(fitd && it_count < it_stop)
+    
+    
+    it_count = it_count + 1;
+    
+    
+    x = t0s;
+    y = td.(var_name) - ints;
+    myfit = fit(x,y,g);
+    pause(0.1);
+    plot(myfit,x,y);
+    
+    a = myfit.a;
+    b = myfit.b;
+    c = myfit.c;
+    d = myfit.d;
+    e = myfit.e;
+    
+    fit_delta = abs(a-prev_a) + abs(b-prev_b) + abs(c-prev_c) + abs(d-prev_d) + abs(e-prev_e);
+    
+    prev_a = a;
+    prev_b = b;
+    prev_c = c;
+    prev_d = d;
+    prev_e = e;
+    
+    if fit_delta < fit_stop
+        disp('Stop condition reached');
+        fitd = false;
+    end
+    
+    rands = round(rand(1,chunk_size)*numel(list));
+    inds = find(rands == 0);
+    rands(inds) = [];
+    
+    nlist = list(rands);
+    
+    for ii = 1:numel(nlist)
+        n = find(td.(id_name)==nlist(ii));
+        
+        X = t0s(n);
+        y = td.(var_name)(n);
+        
+        fun = @(t)a*exp(b*(X+t(1))) + c*(X+t(1)) +d*(X+t(1)).^2 + e + t(2) - y;
+        
+        res = lsqnonlin(fun,xstart,[],[],options);
+        t0s(n) = t0s(n) + res(1);  
+        ints(n) = res(2);
+    end
+    
+end
+ 
+if it_count >= it_stop
+   warning('iteration limit reached before stopping condition');     
+end
+ 
+coeffs.a = a;
+coeffs.b = b;
+coeffs.c = c;
+coeffs.d = d;
+coeffs.e = e;
+ 
+for ii = 1:numel(list)
+    n = find(td.(id_name)==list(ii));
+    
+    X = td.(time_name)(n);
+    y = td.(var_name)(n);
+    
+    fun = @(t)a*exp(b*(X+t(1))) + c*(X+t(1)) +d*(X+t(1)).^2 + e + t(2) - y;
+    
+    res = lsqnonlin(fun,xstart,[],[],options);
+    fin_t0s(n) = res(1);
+    fin_ints(n) = res(2);
+end
+ 
+offsets = fin_t0s;
+intercepts = fin_ints;
+ 
+end
