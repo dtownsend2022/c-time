@@ -1,1 +1,1 @@
-# c-time
+The scripts in this repository contain the MATLAB and R code to run the c-time optimization process in the paper "Estimating the preclinical Alzheimer’s disease course with multimodal data" by DL Townsend et al.
