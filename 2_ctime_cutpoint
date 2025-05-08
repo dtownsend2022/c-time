@@ -10,7 +10,7 @@ model_list=list()
 AIC_BIC = matrix(nrow = length(time_example), ncol = 3)
 i = 1
 for (i in 1:length(time_example)){	
-  tmp <- ctime
+  tmp <- df
   tmp$ctime_new <- tmp$ctime - time_example[i]
   tmp$tg <- ifelse(tmp$ctime_new < 0, 0, 1) 
   tmp$tg1 <- ifelse(tmp$ctime_new > 0, 0, 1)
