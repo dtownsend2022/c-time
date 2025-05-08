@@ -1,0 +1,35 @@
+library(lme4)
+
+## Import dataset from MATLAB
+
+## Piecewise LMM to find cut point in PACC vs. c-time
+range(df$ctime)
+time_example <- seq(0, 15, 0.1) 
+
+model_list=list()
+AIC_BIC = matrix(nrow = length(time_example), ncol = 3)
+i = 1
+for (i in 1:length(time_example)){	
+  tmp <- ctime
+  tmp$ctime_new <- tmp$ctime - time_example[i]
+  tmp$tg <- ifelse(tmp$ctime_new < 0, 0, 1) 
+  tmp$tg1 <- ifelse(tmp$ctime_new > 0, 0, 1)
+  tmp$time1 <- round(tmp$ctime_new, digits = 2)
+  tmp$time2 <- round(tmp$ctime_new, digits = 2)
+  tmp$time1 <- tmp$time1*tmp$tg1
+  tmp$time2 <- tmp$time2*tmp$tg
+  plgModel <- lmer(NP_PACC_PACC5 ~ 1 + time1 + time2 + (1 + time1 + time2 |
+                                                          SubjIDshort), data = tmp)
+  model_list[[i]] = summary(plgModel)
+  AIC_BIC[i, 1] = AIC(plgModel)
+  AIC_BIC[i, 2] = BIC(plgModel)
+  AIC_BIC[i, 3] = time_example[i]
+  }
+  
+  
+# Find the best fit
+min_value_row <- which.min(AIC_BIC[,2])
+cutpoint <- AIC_BIC[min_value_row, 3] 
+
+# Subtract cut point to find new 0
+df$ctime_new <- df$ctime - cutpoint
