@@ -3,30 +3,24 @@
 clear;clc;
  
 %% Generate time and baseline age variables.
-tbl = struct2table(R);
-tbl.SubjIDshort = nominal(tbl.SubjIDshort); % Convert subject ID to categorical variable
-tbl.tt = datenum(tbl.NP_SessionDate)/365.25; % Convert session date to fractional years
-tbl = LongDataSet_Utilis(tbl,'tt',[],'time','SubjIDshort','zero'); % Creates a zero-centered time variable for each subject (i.e. for each subject, earliest time point is 0)
-tbl = LongDataSet_Utilis(tbl,'NP_Age','time','age_bl','SubjIDshort','baseline'); % Creates a new variable age_bl containing each subjects baseline age
-tbl = LongDataSet_Utilis(tbl,'NP_PACC_PACC5','time','pacc_bl','SubjIDshort','baseline'); % Creates a new variable pacc_bl that stores the subject's baseline cognitive score
- 
+td.ID = nominal(td.ID); % Convert subject ID to categorical variable
+td.tt = datenum(td.NP_SessionDate)/365.25; % Convert session date to fractional years
+
  
 %% Set up PACC change scores and slopes
  
 % Subtract each subjects first PACC score from all of their PACC scores.
-list = unique(td.SubjIDshort);
+list = unique(td.ID);
 td.pacc5_change = NaN(height(td),1);
 td.pacc5_lme_res_change = NaN(height(td),1);
 for ii = 1:numel(list)
-   n = find(td.SubjIDshort==list(ii));
-   
+   n = find(td.ID==list(ii));
    td.pacc5_change(n) = td.NP_PACC_PACC5(n) - td.NP_PACC_PACC5(n(1)); % change in PACC from baseline
-   td.pacc5_lme_res_change(n) = lme_resids(n) - lme_resids(n(1));
 end
  
  
 %% Fit a nonlinear model to change in PACC and extract fit parameters per subject
-[p5ch_offsets,p5ch_intercepts,p5ch_coeffs] = fit_and_sort(td,'SubjIDshort','pacc5_change','time',300);
+[p5ch_offsets,p5ch_intercepts,p5ch_coeffs] = fit_and_sort(td,'ID','pacc5_change','time',300);
  
  
  
